@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Questionnaire Upload</title>
+  <script src="setting.js"></script>
+  <script src="Cookie.js"></script>
+  <script src="dateTime.js"></script>
+  <script src="HTTP2024.js"></script>
+
+</head>
+<body style="height: 780px">
+  <h1>FHIR Questionnaire</h1>
+
+  <div id="questionnaire-container"></div>
+  <button onclick="submitResponse()">Submit Response</button>
+
+  <script>
+    // Updated Questionnaire JSON
+    const questionnaire = {
+      "resourceType": "Questionnaire",
+      "id": "Scen4Questionnaire",
+      "url": "https://example.org/fhir/Questionnaire/satisfaction",
+      "version": "1.0.1",
+      "status": "active",
+      "subjectType": ["Patient"],
+      "date": "2024-03-12T17:26:10+00:00",
+      "publisher": "HL7 International / Patient Care",
+      "contact": [{
+        "name": "HL7 International / Patient Care",
+        "telecom": [{
+          "system": "url",
+          "value": "http://www.hl7.org/Special/committees/patientcare"
+        }]
+      }],
+      "jurisdiction": [{
+        "coding": [{
+          "system": "urn:iso:std:iso:3166",
+          "code": "US"
+        }]
+      }],
+      "item": [{
+          "linkId": "1",
+          "text": "Are you satisfied with your current exercise plan?",
+          "type": "boolean"
+        },
+        {
+          "linkId": "2",
+          "text": "Did you experience any discomfort with an exercise?",
+          "type": "boolean"
+        },
+        {
+          "linkId": "3",
+          "text": "If yes, which exercise?",
+          "type": "string"
+        }
+      ]
+    };
+
+    // Render Questionnaire
+    function renderQuestionnaire() {
+      const container = document.getElementById('questionnaire-container');
+
+      questionnaire.item.forEach(question => {
+        const questionElement = document.createElement('div');
+        questionElement.innerHTML = `<p>${question.text}</p>`;
+
+        if(question.type === "boolean") {
+          const yesRadio = document.createElement('input');
+          yesRadio.type = 'radio';
+          yesRadio.name = `question_${question.linkId}`;
+          yesRadio.value = "true";
+          const yesLabel = document.createElement('label');
+          yesLabel.innerHTML = "Yes: ";
+          yesLabel.appendChild(yesRadio);
+
+          const noRadio = document.createElement('input');
+          noRadio.type = 'radio';
+          noRadio.name = `question_${question.linkId}`;
+          noRadio.value = "false";
+          const noLabel = document.createElement('label');
+          noLabel.innerHTML = "No: ";
+          noLabel.appendChild(noRadio);
+
+          questionElement.appendChild(yesLabel);
+          questionElement.appendChild(noLabel);
+        } else if(question.type === "string") {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.name = `question_${question.linkId}`;
+          questionElement.appendChild(input);
+        }
+
+        container.appendChild(questionElement);
+      });
+    }
+
+    // Submit Response and Generate QuestionnaireResponse JSON
+    function submitResponse() {
+      const response = {
+        "resourceType": "QuestionnaireResponse",
+        "id": "Scen4Questionnaire-response",
+        "status": "completed",
+        "questionnaire": "Questionnaire/44599840",
+        "subject": {
+            "reference": "Patient/44387950",
+        },
+        "authored": new Date().toISOString(),
+        "item": []
+      };
+
+      questionnaire.item.forEach(question => {
+        let answer;
+        if(question.type === "boolean" || question.type === "string") {
+          const input = document.querySelector(`[name=question_${question.linkId}]${question.type === "boolean" ? ":checked" : ""}`);
+          if (input && input.value) {
+              answer = {
+                "linkId": question.linkId,
+                "text": question.text,
+                "answer": [{
+                  "valueBoolean": question.type === "boolean" ? input.value === "true" : undefined,
+                  "valueString": question.type === "string" ? input.value : undefined
+                }]
+              };
+            response.item.push(answer);
+          }
+        }
+      });
+
+      
+      var jsonStr = JSON.stringify(response);    
+      var apiURL = FHIRrootURL + "QuestionnaireResponse";
+      sendHttpPost(apiURL, jsonStr, callBack);
+      function callBack(ret) {
+        console.log(ret);
+      }
+    }
+    // Render the questionnaire when the page loads
+    window.onload = renderQuestionnaire;
+  </script>
+</body>
+</html>
